@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        body {
+            font-family: 微软雅黑;
+        }
+    </style>
+</head>
+<body>
+<div style="overflow: auto;font-size:14px;">
+    <svg xmlns="http://www.w3.org/2000/svg" id="svgContainer" version="1.1" height="600" width="1000"
+         style="border:1px solid #eee">
+    </svg>
+</div>
+
+</body>
+<script>
+    // typeScript 数据格式
+    // class Node {
+    //     title: string;
+    //     children: [Node];
+    //     fontColor?: string = null;
+    //     borderColor?: string = null;
+    //     bgColor?: string = null;
+    // }
+
+    const treeData = [
+        {
+            title: '张海生',
+            children: [
+                {
+                    title: "1.1",
+                    children: [
+                        {title: "1.1.1"},
+                        {
+                            title: "李1.1.2光",
+                            children: [
+                                {title: "张1.1.2.1中"},
+                                {title: "1.1.2.2"},
+                                {
+                                    title: "1.1.2.3",
+                                    children: [
+                                        {title: "1.1.2.3,1"},
+                                        {title: "1.1.2.3.2"},
+                                        {title: "1.1.2.3.3"},
+                                        {title: "1.1.2.3.4"},
+                                        {title: "1.1.2.3.5"},
+                                    ]
+                                },
+                                {title: "1.1.2.4"},
+                                {title: "1.1.2.5"},
+                            ]
+                        },
+                    ]
+                },
+                {
+                    title: "1.2",
+                    children: [
+                        {title: "1.2.1",borderColor:"red",fontColor:"red"},
+                        {title: "1.2.2",bgColor:"black",fontColor:"white"},
+                    ]
+                },
+            ]
+        }
+    ];
+
+    const nodeFontS = 14; // 字体大小
+    const interval = 25;  // 节点左右间隔大小
+    const padding = 4;    // 节点内部padding
+    const margin_y = 6;     // 节点上下margin
+    const fontColor = "#626262";  // 默认字体颜色
+    const borderColor = "#55aaee";  // 默认边框颜色
+    const lineColor = "#55aaee";  // 默认连线颜色
+
+    const svg = document.getElementById('svgContainer');
+
+    let _svgW = 0;
+    let _lastNodeN = 0;
+    const _nodeH = nodeFontS + padding * 2 + margin_y * 2;
+
+    // 树状结构数据重构
+    reBuildData(treeData, null);
+    buildSvg(treeData);
+    setSvgContainerSize(_svgW+30, _lastNodeN * _nodeH + 30);
+
+    console.log('treeData');
+    console.log(treeData);
+    console.log(_lastNodeN);
+
+    function reBuildData(d, parent) {  //树状结构数据重构
+        d.forEach((v, i) => {
+            v.parent = parent;
+            if (v.children && v.children.length > 0) {
+                reBuildData(v.children, v);
+                parentY(v, d.length, i)
+            } else {
+                _lastNodeN = _lastNodeN + 1;
+                v.y = _lastNodeN;
+                parentY(v, d.length, i)
+            }
+        })
+    }
+
+    function parentY(lastNode, len, i) {  //计算节点的y坐标
+        const parent = lastNode.parent;
+        if (len === (i + 1) && !!parent) {
+            const s = parent.children[0].y;
+            parent.y = s + (lastNode.y - s) / 2
+        }
+    }
+
+    function setSvgContainerSize(w, h) {  //设置svg的宽和高
+        svg.setAttribute("width", w);
+        svg.setAttribute("height", h);
+    }
+
+    function buildSvg(data) { //生成脑图svg
+        data.forEach((v) => {
+            buildNode(v);
+            if (!!v.children && v.children.length > 0) {
+                buildSvg(v.children)
+            }
+        })
+    }
+
+    function buildNode(node) { // 构建脑图的每个节点
+        const gTag = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        const textTag = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        const text = document.createTextNode(node.title);
+        textTag.appendChild(text);
+
+        gTag.appendChild(textTag)
+        svg.appendChild(gTag);
+
+        textTag.setAttribute("fill", node.fontColor ? node.fontColor : fontColor);
+        const parentx = !!node.parent ? node.parent.x : 0;
+        const parentw = !!node.parent ? node.parent.w : 0;
+        const intervalNow = !!node.parent ? interval : 0;
+
+        const textH = Math.ceil(textTag.getBBox().height);
+        node.w = Math.ceil(textTag.getBBox().width) + padding * 2;
+        node.x = parentx + parentw + intervalNow + 6;
+        gTag.setAttribute('transform', `translate(${node.x + padding},${node.y * (_nodeH) + textH / 2 - 5})`);
+        if ((node.w + node.x) > _svgW) {
+            _svgW = node.w + node.x;
+        }
+        gTag.insertBefore(drawBorder(node), textTag);
+        drawLine(node);
+    }
+
+    function drawBorder(node){  //画节点的边框
+        const fan = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        fan.setAttribute("d", getBorderD(node));
+        fan.setAttribute('stroke', node.borderColor ? node.borderColor : borderColor);
+        fan.setAttribute("stroke-width", "1");
+        fan.setAttribute("fill", node.bgColor?node.bgColor:"none");
+        return fan;
+    }
+    function getBorderD(node){  //获得节点的d
+        return `M0,-17h${node.w-8}a5,5,0,0,1,5,5v13a5,5,0,0,1,-5,5h-${node.w-8}a5,5,0,0,1,-5,-5v-13a5,5,0,0,1,5,-5z`
+    }
+
+    function drawLine(node) {  //为当前节点连线父级节点
+        if (!node.parent) {
+            return
+        }
+        const fan = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        svg.appendChild(fan);
+        fan.setAttribute("d", getD(node));
+        fan.setAttribute('stroke', lineColor);
+        fan.setAttribute("stroke-width", "1");
+        fan.setAttribute("fill", "none");
+    }
+
+    function getD(node) {  // 获得节点的 d线
+        const parent = node.parent;
+        if (parent.y != node.y) {
+            return `M${parent.x + parent.w} ${parent.y * _nodeH} C${parent.x + parent.w + 15} ${parent.y * _nodeH} ${node.x - 15} ${node.y * _nodeH} ${node.x} ${node.y * _nodeH}`;
+        } else {
+            return `M${parent.x + parent.w} ${parent.y * _nodeH} L${node.x} ${node.y * _nodeH}`;
+        }
+    }
+</script>
+</html>
